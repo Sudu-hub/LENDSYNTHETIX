@@ -23,7 +23,7 @@ class ComplianceAgent:
 
         # Offshore Deposit Check
         if loan_data["offshore_deposit"] > 500000:
-            flags.append("Large Offshore Deposit – Source of Funds Required")
+            flags.append("Large Offshore Deposit Source of Funds Required")
 
         return flags, veto
 

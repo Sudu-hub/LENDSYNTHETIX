@@ -1,6 +1,8 @@
 from src.agents.risk_agent import RiskAgent
+from src.agents.sales_agent import SalesAgent
 from src.agents.compliance_agent import ComplianceAgent
 from data.sample_cases import input_b
+from data.sample_cases import input_a
 from src.core.state import WarRoomState
 
 state: WarRoomState = {
@@ -17,9 +19,11 @@ state: WarRoomState = {
 
 risk = RiskAgent()
 compliance = ComplianceAgent()
+sales = SalesAgent()
 
 state = risk.evaluate(state)
 state = compliance.evaluate(state)
+state = sales.evaluate(state)
 
 if state["veto"]:
     state["final_decision"] = "REJECTED Compliance Veto"
@@ -34,3 +38,5 @@ print("VETO:", state["veto"])
 print("RISK SCORE:", state["risk_score"])
 print("\nCOMPLIANCE OPINION:\n", state["compliance_opinion"])
 print("\nFINAL DECISION:", state["final_decision"])
+print("RISK SCORE:", state["risk_score"])
+print("\nSALES OPINION:\n", state["sales_opinion"])
