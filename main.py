@@ -1,12 +1,12 @@
 from src.agents.risk_agent import RiskAgent
 from src.agents.sales_agent import SalesAgent
 from src.agents.compliance_agent import ComplianceAgent
-from data.sample_cases import input_b
+from src.agents.moderator_agent import ModeratorAgent
 from data.sample_cases import input_a
 from src.core.state import WarRoomState
 
 state: WarRoomState = {
-    "loan_data": input_b,
+    "loan_data": input_a,
     "sales_opinion": "",
     "risk_opinion": "",
     "compliance_opinion": "",
@@ -18,25 +18,17 @@ state: WarRoomState = {
 }
 
 risk = RiskAgent()
-compliance = ComplianceAgent()
 sales = SalesAgent()
+compliance = ComplianceAgent()
+moderator = ModeratorAgent()
 
 state = risk.evaluate(state)
-state = compliance.evaluate(state)
 state = sales.evaluate(state)
+state = compliance.evaluate(state)
+state = moderator.decide(state)
 
-if state["veto"]:
-    state["final_decision"] = "REJECTED Compliance Veto"
-else:
-    if state["risk_score"] < 60:
-        state["final_decision"] = "REJECTED High Risk"
-    else:
-        state["final_decision"] = "APPROVED"
-
-print("FLAGS:", state["flags"])
+print("\nFLAGS:", state["flags"])
+print("RISK SCORE:", state["risk_score"])
 print("VETO:", state["veto"])
-print("RISK SCORE:", state["risk_score"])
-print("\nCOMPLIANCE OPINION:\n", state["compliance_opinion"])
-print("\nFINAL DECISION:", state["final_decision"])
-print("RISK SCORE:", state["risk_score"])
-print("\nSALES OPINION:\n", state["sales_opinion"])
+print("FINAL DECISION:", state["final_decision"])
+print("TURNS:", state["turn_count"])

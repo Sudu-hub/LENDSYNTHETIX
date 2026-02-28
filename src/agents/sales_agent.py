@@ -10,13 +10,13 @@ class SalesAgent:
     def sales_insights(self, loan_data):
         positives = []
 
-        if loan_data["revenue_growth"] > 20:
+        if loan_data.revenue_growth > 20:
             positives.append("Strong Revenue Growth")
 
-        if loan_data["industry"] in ["Tech SaaS", "AI", "FinTech"]:
+        if loan_data.industry in ["Tech SaaS", "AI", "FinTech"]:
             positives.append("High Growth Industry")
 
-        if loan_data["dscr"] >= 1.1:
+        if loan_data.dscr>= 1.1:
             positives.append("Acceptable DSCR with Growth Potential")
 
         return positives

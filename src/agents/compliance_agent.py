@@ -12,17 +12,17 @@ class ComplianceAgent:
         veto = False
 
         # AML Flag
-        if loan_data["aml_flag"]:
+        if loan_data.aml_flag:
             flags.append("AML Red Flag")
             veto = True
 
         # Grey List Director
-        if loan_data["director_grey_list"]:
+        if loan_data.director_grey_list:
             flags.append("Director on Grey List")
             veto = True
 
         # Offshore Deposit Check
-        if loan_data["offshore_deposit"] > 500000:
+        if loan_data.offshore_deposit > 500000:
             flags.append("Large Offshore Deposit Source of Funds Required")
 
         return flags, veto

@@ -13,16 +13,16 @@ class RiskAgent:
     def deterministic_checks(self, loan_data):
         flags = []
 
-        if loan_data["dscr"] < self.thresholds["min_dscr"]:
+        if loan_data.dscr < self.thresholds["min_dscr"]:
             flags.append("Low DSCR")
 
-        if loan_data["debt_to_equity"] > self.thresholds["max_debt_to_equity"]:
+        if loan_data.debt_to_equity> self.thresholds["max_debt_to_equity"]:
             flags.append("High Debt-to-Equity")
 
-        if loan_data["revenue_growth"] < self.thresholds["min_revenue_growth"]:
+        if loan_data.revenue_growth < self.thresholds["min_revenue_growth"]:
             flags.append("Low Revenue Growth")
 
-        if loan_data["collateral_value"] == 0:
+        if loan_data.collateral_value == 0:
             flags.append("No Collateral")
 
         return flags
