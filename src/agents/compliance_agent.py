@@ -45,7 +45,6 @@ Be formal and procedural.
 
     def evaluate(self, state: WarRoomState) -> WarRoomState:
         loan_data = state["loan_data"]
-
         flags, veto = self.compliance_checks(loan_data)
         reasoning = self.generate_reasoning(loan_data, flags, veto)
 
