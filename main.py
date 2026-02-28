@@ -1,34 +1,24 @@
-from src.agents.risk_agent import RiskAgent
-from src.agents.sales_agent import SalesAgent
-from src.agents.compliance_agent import ComplianceAgent
-from src.agents.moderator_agent import ModeratorAgent
-from data.sample_cases import input_a
+from src.core.workflow import build_graph
 from src.core.state import WarRoomState
+from data.sample_cases import input_a
+
+graph = build_graph()
 
 state: WarRoomState = {
     "loan_data": input_a,
-    "sales_opinion": "",
-    "risk_opinion": "",
-    "compliance_opinion": "",
+    "sales_opinion": None,
+    "risk_opinion": None,
+    "compliance_opinion": None,
     "flags": [],
     "veto": False,
     "turn_count": 0,
-    "final_decision": "",
-    "risk_score": 0,
+    "risk_score": None,
+    "final_decision": None,
+    "decision_summary": None,
 }
 
-risk = RiskAgent()
-sales = SalesAgent()
-compliance = ComplianceAgent()
-moderator = ModeratorAgent()
+result = graph.invoke(state)
 
-state = risk.evaluate(state)
-state = sales.evaluate(state)
-state = compliance.evaluate(state)
-state = moderator.decide(state)
-
-print("\nFLAGS:", state["flags"])
-print("RISK SCORE:", state["risk_score"])
-print("VETO:", state["veto"])
-print("FINAL DECISION:", state["final_decision"])
-print("TURNS:", state["turn_count"])
+print("\nFINAL DECISION:", result["final_decision"])
+print("\nSUMMARY:\n", result["decision_summary"])
+print("\nTURNS:", result["turn_count"])
