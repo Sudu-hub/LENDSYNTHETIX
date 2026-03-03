@@ -15,6 +15,9 @@ state: WarRoomState = {
     "risk_score": None,
     "final_decision": None,
     "decision_summary": None,
+    "debate_round": 0,
+    "max_rounds": 2,
+    "consensus_reached": False,
 }
 
 result = graph.invoke(state)

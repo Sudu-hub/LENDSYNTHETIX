@@ -1,22 +1,29 @@
+# src/core/state.py
+
 from typing import TypedDict, List, Optional, Literal
 from pydantic import BaseModel, Field
 
 
+# ---------------------------
 # Loan Input Model
+# ---------------------------
 
 class LoanData(BaseModel):
     industry: str
 
     revenue_growth: float = Field(
-        ..., description="YoY revenue growth (EX: 0.2 = 20%)"
+        ..., ge=0, le=1,
+        description="YoY revenue growth as decimal (0.40 = 40%)"
     )
 
     dscr: float = Field(
-        ..., gt=0, description="Debt Service Coverage Ratio"
+        ..., gt=0,
+        description="Debt Service Coverage Ratio"
     )
 
     debt_to_equity: float = Field(
-        ..., ge=0, description="Debt-to-equity ratio"
+        ..., ge=0,
+        description="Debt-to-equity ratio"
     )
 
     collateral_value: Optional[float] = Field(
@@ -33,7 +40,7 @@ class LoanData(BaseModel):
 
     director_grey_list: bool = Field(
         default=False,
-        description="Whether any director is on a grey watchlist"
+        description="Director appears on grey watchlist"
     )
 
     aml_flag: bool = Field(
@@ -42,7 +49,9 @@ class LoanData(BaseModel):
     )
 
 
-# War Room State Machine
+# ---------------------------
+# War Room State
+# ---------------------------
 
 class WarRoomState(TypedDict):
     loan_data: LoanData
@@ -58,3 +67,7 @@ class WarRoomState(TypedDict):
     risk_score: Optional[int]
     final_decision: Optional[Literal["approve", "reject", "review"]]
     decision_summary: Optional[str]
+
+    debate_round: int
+    max_rounds: int
+    consensus_reached: bool

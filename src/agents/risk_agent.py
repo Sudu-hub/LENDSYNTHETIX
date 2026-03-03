@@ -54,7 +54,9 @@ Be structured and professional.
         response = self.llm.invoke(prompt)
         return response.content
 
+    
     def evaluate(self, state: WarRoomState) -> WarRoomState:
+
         loan_data = state["loan_data"]
 
         flags = self.deterministic_checks(loan_data)
@@ -65,5 +67,8 @@ Be structured and professional.
         state["risk_score"] = risk_score
         state["flags"].extend(flags)
         state["turn_count"] += 1
+
+        #Increment debate round here (NOT in router)
+        state["debate_round"] += 1
 
         return state
