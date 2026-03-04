@@ -1,5 +1,7 @@
 from src.core.workflow import build_graph
 from src.core.state import WarRoomState
+from src.utils.audit_export import export_memo_to_txt
+from src.utils.metrics import calculate_metrics
 from data.sample_cases import input_a
 
 graph = build_graph()
@@ -20,8 +22,12 @@ state: WarRoomState = {
     "consensus_reached": False,
 }
 
-result = graph.invoke(state)
+final_state = graph.invoke(state)
+file_path = export_memo_to_txt(final_state)
+metrics = calculate_metrics(final_state)
 
-print("\nFINAL DECISION:", result["final_decision"])
-print("\nSUMMARY:\n", result["decision_summary"])
-print("\nTURNS:", result["turn_count"])
+print("\n==== METRICS ====")
+for k, v in metrics.items():
+    print(f"{k}: {v}")
+    
+print("\nDecision memo saved at:", file_path)
