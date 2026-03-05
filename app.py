@@ -1,15 +1,20 @@
 import streamlit as st
+import plotly.express as px
+import plotly.graph_objects as go
+import pandas as pd
+
 from src.core.workflow import build_graph
 from src.core.state import LoanData
 from src.utils.metrics import calculate_metrics
-from src.utils.audit_export import export_memo_to_txt
+from src.utils.audit_export import generate_decision_memo
+from src.utils.audit_export import export_memo_to_pdf
 
 st.set_page_config(page_title="LendSynthetix War Room", layout="wide")
 
-st.title("LendSynthetix-Digital War Room")
+st.title("🏦 LendSynthetix – Digital AI War Room")
 
 # -----------------------
-# Loan Input Form
+# Sidebar Input
 # -----------------------
 
 st.sidebar.header("Loan Application Input")
@@ -23,11 +28,30 @@ offshore = st.sidebar.number_input("Offshore Deposit", 0.0, 100000000.0, 0.0)
 grey_list = st.sidebar.checkbox("Director on Grey List?")
 aml_flag = st.sidebar.checkbox("AML Flag?")
 
-run_button = st.sidebar.button("Run War Room")
-
+run_button = st.sidebar.button("🚀 Run War Room")
 
 # -----------------------
-# Run Engine
+# Risk Gauge
+# -----------------------
+
+def risk_gauge(score):
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=score,
+        title={'text': "Risk Score"},
+        gauge={
+            'axis': {'range': [0, 100]},
+            'steps': [
+                {'range': [0, 50], 'color': "red"},
+                {'range': [50, 75], 'color': "yellow"},
+                {'range': [75, 100], 'color': "green"},
+            ],
+        }
+    ))
+    return fig
+
+# -----------------------
+# Run Engine (INVOKE ONLY)
 # -----------------------
 
 if run_button:
@@ -60,37 +84,122 @@ if run_button:
     }
 
     graph = build_graph()
-    final_state = graph.invoke(state)
 
-    metrics = calculate_metrics(final_state)
+    with st.spinner("⚙ Running AI War Room..."):
+        try:
+            final_state = graph.invoke(state)
+        except Exception as e:
+            st.error(f"System Error: {e}")
+            st.stop()
 
     # -----------------------
-    # Results Display
+    # Decision Overview
     # -----------------------
 
-    st.subheader("Decision Overview")
+    st.subheader("📊 Decision Overview")
 
     col1, col2, col3 = st.columns(3)
 
-    col1.metric("Risk Score", final_state["risk_score"])
-    col2.metric("Debate Rounds", final_state["debate_round"])
-    col3.metric("Total Turns", final_state["turn_count"])
+    col1.metric("Risk Score", final_state.get("risk_score", "N/A"))
+    col2.metric("Debate Rounds", final_state.get("debate_round", "N/A"))
+    col3.metric("Total Turns", final_state.get("turn_count", "N/A"))
 
-    st.success(f"Final Decision: {final_state['final_decision']}")
+    decision = final_state.get("final_decision", "No Decision")
 
-    st.subheader("Agent Opinions")
+    if "REJECT" in decision.upper():
+        st.error(f"Final Decision: {decision}")
+    elif "APPROVE" in decision.upper():
+        st.success(f"Final Decision: {decision}")
+    else:
+        st.warning(f"Final Decision: {decision}")
 
-    st.markdown("**Sales:**")
-    st.write(final_state["sales_opinion"])
+    # Risk Gauge
+    if final_state.get("risk_score") is not None:
+        st.plotly_chart(risk_gauge(final_state["risk_score"]))
 
-    st.markdown("**Risk:**")
-    st.write(final_state["risk_opinion"])
+    # -----------------------
+    # Debate Timeline (Visual Impact)
+    # -----------------------
 
-    st.markdown("**Compliance:**")
-    st.write(final_state["compliance_opinion"])
+    st.subheader("🕒 Debate Timeline")
 
-    st.subheader("Executive Summary")
-    st.write(final_state["decision_summary"])
+    timeline_data = [
+        {"Step": "Risk Review", "Order": 1},
+        {"Step": "Sales Counter", "Order": 2},
+        {"Step": "Compliance Check", "Order": 3},
+        {"Step": "Moderator Decision", "Order": 4},
+    ]
 
-    file_path = export_memo_to_txt(final_state)
-    st.info(f"Audit memo saved at: {file_path}")
+    df_timeline = pd.DataFrame(timeline_data)
+    fig = px.line(df_timeline, x="Order", y="Order", text="Step")
+    st.plotly_chart(fig)
+
+    # -----------------------
+    # Agent Debate View
+    # -----------------------
+
+    st.subheader("🗣 War Room Debate")
+
+    st.markdown("### 🔍 Risk Agent")
+    st.write(final_state.get("risk_opinion", "N/A"))
+
+    st.markdown("### 💼 Sales Agent")
+    st.write(final_state.get("sales_opinion", "N/A"))
+
+    st.markdown("### 🛡 Compliance Officer")
+    st.write(final_state.get("compliance_opinion", "N/A"))
+
+    # -----------------------
+    # Executive Summary
+    # -----------------------
+
+    st.subheader("📝 Executive Summary")
+    st.write(final_state.get("decision_summary", "No summary generated."))
+
+    # -----------------------
+    # Performance Analytics
+    # -----------------------
+
+    st.subheader("📈 Performance Analytics")
+
+    metrics_df = pd.DataFrame({
+        "Metric": [
+            "Risk Score",
+            "Debate Rounds",
+            "Turn Count",
+            "Total Flags"
+        ],
+        "Value": [
+            final_state.get("risk_score", 0),
+            final_state.get("debate_round", 0),
+            final_state.get("turn_count", 0),
+            len(final_state.get("flags", []))
+        ]
+    })
+
+    fig = px.bar(metrics_df, x="Metric", y="Value")
+    st.plotly_chart(fig)
+
+    # -----------------------
+    # Download Memo
+    # -----------------------
+
+    memo_text = generate_decision_memo(final_state)
+    
+    pdf_file_path = export_memo_to_pdf(final_state)
+
+    with open(pdf_file_path, "rb") as pdf_file:
+        st.download_button(
+            label="📄 Download Decision Memo (PDF)",
+            data=pdf_file,
+            file_name="decision_memo.pdf",
+            mime="application/pdf"
+        )
+    
+
+    st.download_button(
+        label="📄 Download Decision Memo",
+        data=memo_text,
+        file_name="decision_memo.txt",
+        mime="text/plain"
+    )

@@ -21,8 +21,12 @@ state: WarRoomState = {
     "max_rounds": 2,
     "consensus_reached": False,
 }
-
 final_state = graph.invoke(state)
+
+for message_chunk, metadata in graph.stream(state, stream_mode="messages"): #Streaming
+    if message_chunk.content:
+        print(message_chunk.content, end="", flush=True)
+        
 file_path = export_memo_to_txt(final_state)
 metrics = calculate_metrics(final_state)
 
