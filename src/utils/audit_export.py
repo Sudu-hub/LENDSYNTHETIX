@@ -1,6 +1,11 @@
 import os
 from datetime import datetime
 from src.core.state import WarRoomState
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import Paragraph
 
 
 def generate_decision_memo(state: WarRoomState) -> str:
@@ -67,15 +72,18 @@ END OF MEMO
     return memo
 
 
-def export_memo_to_txt(state: WarRoomState, folder="outputs"):
+def export_memo_to_pdf(state, filename="decision_memo.pdf"):
 
-    os.makedirs(folder, exist_ok=True)
+    doc = SimpleDocTemplate(filename, pagesize=letter)
+    styles = getSampleStyleSheet()
+    elements = []
 
     memo_text = generate_decision_memo(state)
 
-    filename = f"{folder}/decision_memo_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+    for line in memo_text.split("\n"):
+        elements.append(Paragraph(line, styles["Normal"]))
+        elements.append(Spacer(1, 6))
 
-    with open(filename, "w", encoding="utf-8") as f:
-        f.write(memo_text)
+    doc.build(elements)
 
     return filename
