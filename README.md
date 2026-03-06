@@ -106,6 +106,13 @@ LendSynthetix demonstrates how **AI agent collaboration can simulate institution
 
 ---
 
-## Authors
+## Key Innovations
 
-Built for the **AI/ML Data Buildathon by vConstruct**.
+• Multi-Agent AI Debate System  
+• LangGraph Workflow Orchestration  
+• Compliance Veto Logic  
+• Financial Risk Scoring  
+• Stress Test Simulation  
+• Explainable AI Decision Logs  
+• Scenario Comparison Mode  
+• Audit Memo Generation
