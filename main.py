@@ -1,6 +1,6 @@
 from src.core.workflow import build_graph
 from src.core.state import WarRoomState
-from src.utils.audit_export import export_memo_to_txt
+from src.utils.audit_export import export_memo_to_pdf
 from src.utils.metrics import calculate_metrics
 from data.sample_cases import input_a
 
@@ -27,7 +27,7 @@ for message_chunk, metadata in graph.stream(state, stream_mode="messages"): #Str
     if message_chunk.content:
         print(message_chunk.content, end="", flush=True)
         
-file_path = export_memo_to_txt(final_state)
+file_path = export_memo_to_pdf(final_state)
 metrics = calculate_metrics(final_state)
 
 print("\n==== METRICS ====")

@@ -2,8 +2,11 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
+import uuid
+from src.utils.history_viewer import fetch_warroom_history
 
 from src.core.workflow import build_graph
+from src.core.checkpointer import get_checkpointer
 from src.core.state import LoanData
 from src.utils.audit_export import generate_decision_memo, export_memo_to_pdf
 
@@ -12,7 +15,7 @@ st.set_page_config(page_title="LendSynthetix War Room", layout="wide")
 st.title("🏦 LendSynthetix - Digital AI War Room")
 
 # -----------------------
-# Sidebar Input
+# Sidebar Inputs
 # -----------------------
 
 st.sidebar.header("Loan Application Input")
@@ -23,13 +26,11 @@ dscr = st.sidebar.number_input("DSCR", 0.1, 5.0, 1.2)
 de_ratio = st.sidebar.number_input("Debt-to-Equity", 0.0, 5.0, 2.0)
 collateral = st.sidebar.number_input("Collateral Value", 0.0, 100000000.0, 0.0)
 offshore = st.sidebar.number_input("Offshore Deposit", 0.0, 100000000.0, 0.0)
+
 grey_list = st.sidebar.checkbox("Director on Grey List?")
 aml_flag = st.sidebar.checkbox("AML Flag?")
 
-# ⭐ Stress Test
 stress_mode = st.sidebar.checkbox("Run Stress Test Scenario")
-
-# ⭐ Scenario Comparison
 compare_mode = st.sidebar.checkbox("Compare Two Scenarios")
 
 if compare_mode:
@@ -43,11 +44,15 @@ if compare_mode:
 
 run_button = st.sidebar.button("🚀 Run War Room")
 
+
 # -----------------------
 # Risk Gauge
 # -----------------------
 
 def risk_gauge(score):
+
+    score = score if score is not None else 0
+
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=score,
@@ -61,32 +66,12 @@ def risk_gauge(score):
             ],
         }
     ))
+
     return fig
 
 
 # -----------------------
-# Confidence Score
-# -----------------------
-
-def calculate_confidence(state):
-
-    score = state.get("risk_score", 50)
-    flags = len(state.get("flags", []))
-    rounds = state.get("debate_round", 1)
-
-    confidence = 100
-
-    if score < 60:
-        confidence -= 20
-
-    confidence -= flags * 5
-    confidence -= rounds * 3
-
-    return max(50, min(confidence, 95))
-
-
-# -----------------------
-# Run Engine
+# Run War Room
 # -----------------------
 
 if run_button:
@@ -122,27 +107,66 @@ if run_button:
         "consensus_reached": False,
     }
 
-    graph = build_graph()
-
-    with st.spinner("⚙ Running AI War Room..."):
-        final_state = graph.invoke(state)
+    config = {
+        "configurable": {
+            "thread_id": str(uuid.uuid4())
+        }
+    }
 
     # -----------------------
-    # Decision Overview
+    # Run Graph
+    # -----------------------
+
+    with get_checkpointer() as checkpointer:
+
+        graph = build_graph(checkpointer)
+
+        # Scenario A
+        final_state = graph.invoke(state, config=config)
+
+        result_b = None
+
+        # Scenario B
+        if compare_mode:
+
+            loan_b = LoanData(
+                industry=industry_b,
+                revenue_growth=growth_b / 100,
+                dscr=dscr_b,
+                debt_to_equity=de_ratio_b,
+                collateral_value=collateral,
+                offshore_deposit=offshore,
+                director_grey_list=grey_list,
+                aml_flag=aml_flag,
+            )
+
+            state_b = state.copy()
+            state_b["loan_data"] = loan_b
+
+            config_b = {
+                "configurable": {
+                    "thread_id": str(uuid.uuid4())
+                }
+            }
+
+            result_b = graph.invoke(state_b, config=config_b)
+
+    # -----------------------
+    # Decision Metrics
     # -----------------------
 
     st.subheader("📊 Decision Overview")
 
-    col1, col2, col3, col4 = st.columns(4)
+    risk_score = final_state.get("risk_score", 0)
+    debate_round = final_state.get("debate_round", 0)
+    turn_count = final_state.get("turn_count", 0)
+    decision = final_state.get("final_decision", "UNKNOWN")
 
-    col1.metric("Risk Score", final_state.get("risk_score", "N/A"))
-    col2.metric("Debate Rounds", final_state.get("debate_round", "N/A"))
-    col3.metric("Total Turns", final_state.get("turn_count", "N/A"))
+    col1, col2, col3 = st.columns(3)
 
-    confidence = calculate_confidence(final_state)
-    col4.metric("AI Confidence", f"{confidence}%")
-
-    decision = final_state.get("final_decision", "No Decision")
+    col1.metric("Risk Score", risk_score)
+    col2.metric("Debate Rounds", debate_round)
+    col3.metric("Total Turns", turn_count)
 
     if "REJECT" in decision.upper():
         st.error(f"Final Decision: {decision}")
@@ -151,40 +175,7 @@ if run_button:
     else:
         st.warning(f"Final Decision: {decision}")
 
-    if final_state.get("risk_score") is not None:
-        st.plotly_chart(risk_gauge(final_state["risk_score"]))
-
-    # -----------------------
-    # Explainability
-    # -----------------------
-
-    st.subheader("🔎 Decision Explanation")
-
-    explanation = f"""
-    • Risk Score Evaluated: **{final_state.get('risk_score')}**  
-    • Total Risk Flags: **{len(final_state.get('flags', []))}**  
-    • Debate Rounds Conducted: **{final_state.get('debate_round')}**  
-    • Compliance Veto Triggered: **{'Yes' if final_state.get('veto') else 'No'}**
-    """
-
-    st.info(explanation)
-
-    # -----------------------
-    # Debate Timeline
-    # -----------------------
-
-    st.subheader("🕒 Debate Timeline")
-
-    timeline_data = [
-        {"Step": "Risk Review", "Order": 1},
-        {"Step": "Sales Counter", "Order": 2},
-        {"Step": "Compliance Check", "Order": 3},
-        {"Step": "Moderator Decision", "Order": 4},
-    ]
-
-    df_timeline = pd.DataFrame(timeline_data)
-    fig = px.line(df_timeline, x="Order", y="Order", text="Step")
-    st.plotly_chart(fig)
+    st.plotly_chart(risk_gauge(risk_score))
 
     # -----------------------
     # Agent Debate
@@ -192,83 +183,42 @@ if run_button:
 
     st.subheader("🗣 War Room Debate")
 
-    st.markdown("### 🔍 Risk Agent")
-    st.write(final_state.get("risk_opinion", "N/A"))
+    st.markdown("### Risk Agent")
+    st.write(final_state.get("risk_opinion"))
 
-    st.markdown("### 💼 Sales Agent")
-    st.write(final_state.get("sales_opinion", "N/A"))
+    st.markdown("### Sales Agent")
+    st.write(final_state.get("sales_opinion"))
 
-    st.markdown("### 🛡 Compliance Officer")
-    st.write(final_state.get("compliance_opinion", "N/A"))
+    st.markdown("### Compliance Agent")
+    st.write(final_state.get("compliance_opinion"))
 
     # -----------------------
-    # ⭐ Agent Flag Visualization
+    # Risk Flags
     # -----------------------
 
-    st.subheader("🚩 Risk Flag Analysis")
+    st.subheader("🚩 Risk Flags")
 
     flags = final_state.get("flags", [])
 
     if flags:
+
         flag_df = pd.DataFrame({"Flag": flags})
         st.dataframe(flag_df)
-        flag_df = pd.DataFrame({"Flag": flags})
 
-        st.dataframe(flag_df)
+        counts = flag_df["Flag"].value_counts().reset_index()
+        counts.columns = ["Flag", "Count"]
 
-        flag_counts = flag_df["Flag"].value_counts().reset_index()
-        flag_counts.columns = ["Flag", "Count"]
-
-        fig = px.bar(flag_counts, x="Flag", y="Count", title="Risk Flag Frequency")
+        fig = px.bar(counts, x="Flag", y="Count")
         st.plotly_chart(fig)
+
     else:
         st.success("No Risk Flags")
 
     # -----------------------
-    # Performance Analytics
+    # Scenario Comparison
     # -----------------------
 
-    st.subheader("📈 Performance Analytics")
-
-    metrics_df = pd.DataFrame({
-        "Metric": [
-            "Risk Score",
-            "Debate Rounds",
-            "Turn Count",
-            "Total Flags"
-        ],
-        "Value": [
-            final_state.get("risk_score", 0),
-            final_state.get("debate_round", 0),
-            final_state.get("turn_count", 0),
-            len(final_state.get("flags", []))
-        ]
-    })
-
-    fig = px.bar(metrics_df, x="Metric", y="Value")
-    st.plotly_chart(fig)
-
-    # -----------------------
-    # ⭐ Scenario Comparison
-    # -----------------------
-
-    if compare_mode:
-
-        loan_b = LoanData(
-            industry=industry_b,
-            revenue_growth=growth_b / 100,
-            dscr=dscr_b,
-            debt_to_equity=de_ratio_b,
-            collateral_value=collateral,
-            offshore_deposit=offshore,
-            director_grey_list=grey_list,
-            aml_flag=aml_flag,
-        )
-
-        state_b = state.copy()
-        state_b["loan_data"] = loan_b
-
-        result_b = graph.invoke(state_b)
+    if compare_mode and result_b:
 
         comparison = pd.DataFrame({
             "Scenario": ["A", "B"],
@@ -286,30 +236,28 @@ if run_button:
         st.table(comparison)
 
     # -----------------------
-    # Download Memo
+    # Export Memo
     # -----------------------
 
     memo_text = generate_decision_memo(final_state)
-    pdf_file_path = export_memo_to_pdf(final_state)
+    pdf_file = export_memo_to_pdf(final_state)
 
-    with open(pdf_file_path, "rb") as pdf_file:
+    with open(pdf_file, "rb") as f:
         st.download_button(
-            label="📄 Download Decision Memo (PDF)",
-            data=pdf_file,
-            file_name="decision_memo.pdf",
-            mime="application/pdf"
+            "📄 Download PDF Memo",
+            f,
+            file_name="decision_memo.pdf"
         )
 
     st.download_button(
-        label="📄 Download Decision Memo (TXT)",
-        data=memo_text,
-        file_name="decision_memo.txt",
-        mime="text/plain"
+        "📄 Download TXT Memo",
+        memo_text,
+        file_name="decision_memo.txt"
     )
 
 
 # -----------------------
-# ⭐ System Architecture
+# System Architecture
 # -----------------------
 
 with st.expander("⚙ System Architecture"):
@@ -317,23 +265,45 @@ with st.expander("⚙ System Architecture"):
     st.markdown("""
 ### LendSynthetix AI War Room Architecture
 
-1️⃣ **Sales Agent**  
+**1️⃣ Sales Agent**  
 Advocates for loan approval and highlights growth potential.
 
-2️⃣ **Risk Agent**  
+**2️⃣ Risk Agent**  
 Evaluates financial metrics and generates a risk score.
 
-3️⃣ **Compliance Agent**  
+**3️⃣ Compliance Agent**  
 Checks AML/KYC risks and can veto risky approvals.
 
-4️⃣ **Moderator Agent**  
+**4️⃣ Moderator Agent**  
 Aggregates agent opinions and finalizes the decision.
 
-5️⃣ **LangGraph Debate Engine**  
+**5️⃣ LangGraph Debate Engine**  
 Coordinates multi-round debate between agents.
 
-6️⃣ **Audit Export System**  
+**6️⃣ PostgreSQL Memory Layer**  
+Stores agent decisions and workflow states.
+
+**7️⃣ Audit Export System**  
 Generates explainable decision memo (PDF/TXT).
 
-This system simulates a **real institutional credit committee** using AI agents.
+This system simulates a **real institutional credit committee using AI agents.**
 """)
+    
+# -----------------------
+# War Room History
+# -----------------------
+
+with st.expander("📚 War Room History (Previous Decisions)"):
+
+    try:
+
+        history_df = fetch_warroom_history()
+
+        if history_df.empty:
+            st.info("No previous runs found.")
+        else:
+            st.dataframe(history_df)
+
+    except Exception as e:
+
+        st.warning("History not available yet.")
