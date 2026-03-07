@@ -1,12 +1,15 @@
 from src.core.llm import get_llm
 from src.core.state import WarRoomState
-
+from langsmith import traceable
+from dotenv import load_dotenv
+load_dotenv()
 
 class ModeratorAgent:
 
     def __init__(self):
         self.llm = get_llm()
-
+        
+    @traceable(name="genereate_moderator_reasoning")
     def generate_summary(self, state: WarRoomState) -> str:
         prompt = f"""
 You are the credit committee chair.
@@ -28,7 +31,8 @@ Be formal, structured, and audit-ready.
 """
         response = self.llm.invoke(prompt)
         return response.content
-
+    
+    @traceable(name="moderator_decision")
     def decide(self, state: WarRoomState) -> WarRoomState:
 
         # Rule 1: Compliance Veto

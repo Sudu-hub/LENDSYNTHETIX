@@ -1,12 +1,15 @@
 from src.core.llm import get_llm
 from src.core.state import WarRoomState
-
+from langsmith import traceable
+from dotenv import load_dotenv
+load_dotenv()
 
 class SalesAgent:
 
     def __init__(self):
         self.llm = get_llm()
-
+        
+    @traceable(name="sales_insights")
     def sales_insights(self, loan_data):
         positives = []
 
@@ -20,7 +23,8 @@ class SalesAgent:
             positives.append("Acceptable DSCR with Growth Potential")
 
         return positives
-
+    
+    @traceable(name="generate_sales_reasoning")
     def generate_reasoning(self, loan_data, positives, risk_flags):
         prompt = f"""
 You are a senior relationship manager in a commercial bank.
@@ -38,7 +42,8 @@ Be structured and persuasive.
 
         response = self.llm.invoke(prompt)
         return response.content
-
+    
+    @traceable(name="sales_agent_evaluation")
     def evaluate(self, state: WarRoomState) -> WarRoomState:
         loan_data = state["loan_data"]
         risk_flags = state["flags"]

@@ -1,6 +1,8 @@
 # src/core/workflow.py
 
 from langgraph.graph import StateGraph, END
+from langsmith import traceable
+
 from src.core.state import WarRoomState
 
 from src.agents.risk_agent import RiskAgent
@@ -23,6 +25,7 @@ moderator_agent = ModeratorAgent()
 # Node Functions
 # ---------------------------
 
+@traceable(name="risk_node", metadata={"agent": "risk"})
 def risk_node(state: WarRoomState):
 
     print("Risk Agent Running")
@@ -33,6 +36,7 @@ def risk_node(state: WarRoomState):
     return risk_agent.evaluate(state)
 
 
+@traceable(name="sales_node", metadata={"agent": "sales"})
 def sales_node(state: WarRoomState):
 
     print("Sales Agent Running")
@@ -42,6 +46,7 @@ def sales_node(state: WarRoomState):
     return sales_agent.evaluate(state)
 
 
+@traceable(name="compliance_node", metadata={"agent": "compliance"})
 def compliance_node(state: WarRoomState):
 
     print("Compliance Agent Running")
@@ -51,6 +56,7 @@ def compliance_node(state: WarRoomState):
     return compliance_agent.evaluate(state)
 
 
+@traceable(name="moderator_node", metadata={"agent": "moderator"})
 def moderator_node(state: WarRoomState):
 
     print("Moderator Agent Running")
@@ -64,6 +70,7 @@ def moderator_node(state: WarRoomState):
 # Debate Router
 # ---------------------------
 
+@traceable(name="debate_router")
 def debate_router(state: WarRoomState):
 
     risk_score = state.get("risk_score")
@@ -73,9 +80,10 @@ def debate_router(state: WarRoomState):
 
     # Stop debate if max rounds reached
     if rounds >= max_rounds:
+        print("Max debate rounds reached → Compliance")
         return "compliance"
 
-    # Continue debate if strong growth but risk still uncertain
+    # Continue debate if growth is strong but risk still unclear
     if risk_score is not None and risk_score < 70 and growth > 0.25:
         print("Debate continues → Back to Risk Agent")
         return "risk"
@@ -88,6 +96,7 @@ def debate_router(state: WarRoomState):
 # Build Graph
 # ---------------------------
 
+@traceable(name="build_warroom_graph")
 def build_graph(checkpointer=None):
 
     builder = StateGraph(WarRoomState)
@@ -101,7 +110,7 @@ def build_graph(checkpointer=None):
     # Entry
     builder.set_entry_point("risk")
 
-    # Debate flow
+    # Debate Flow
     builder.add_edge("risk", "sales")
 
     builder.add_conditional_edges(

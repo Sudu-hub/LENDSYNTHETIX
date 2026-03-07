@@ -4,11 +4,16 @@ import plotly.graph_objects as go
 import pandas as pd
 import uuid
 from src.utils.history_viewer import fetch_warroom_history
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from src.core.workflow import build_graph
 from src.core.checkpointer import get_checkpointer
 from src.core.state import LoanData
 from src.utils.audit_export import generate_decision_memo, export_memo_to_pdf
+os.environ["LANGCHAIN_TRACING_V2"] = "true"
 
 st.set_page_config(page_title="LendSynthetix War Room", layout="wide")
 
