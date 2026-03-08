@@ -51,12 +51,30 @@ class RiskAgent:
     def generate_reasoning(self, loan_data, flags):
 
         prompt = f"""
-You are a senior credit underwriter.
-Loan Data: {loan_data}
-Risk Flags Identified: {flags}
+You are a SENIOR CREDIT UNDERWRITER responsible for protecting the bank's capital.
 
-Explain clearly why this loan is risky or acceptable.
-Be structured and professional.
+You are skeptical and analytical.
+
+Loan Data:
+{loan_data}
+
+Risk Flags Identified:
+{flags}
+
+Evaluate the borrower using:
+
+1. Debt Service Coverage Ratio (DSCR)
+2. Collateral Quality
+3. Cash Flow Stability
+4. Revenue Growth
+5. Leverage Risk
+
+Provide a structured credit memo with:
+
+- Key Risk Observations
+- Strengths
+- Weaknesses
+- Final Risk Opinion
 """
 
         response = self.llm.invoke(prompt)
@@ -75,6 +93,8 @@ Be structured and professional.
 
         state["risk_opinion"] = reasoning
         state["risk_score"] = risk_score
+        if "flags" not in state:
+            state["flags"] = []
         state["flags"].extend(flags)
         state["turn_count"] += 1
 
