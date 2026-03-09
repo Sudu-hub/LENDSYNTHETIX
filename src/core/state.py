@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 # ---------------------------
 
 class LoanData(BaseModel):
+
     industry: str
 
     revenue_growth: float = Field(
@@ -54,20 +55,52 @@ class LoanData(BaseModel):
 # ---------------------------
 
 class WarRoomState(TypedDict):
-    loan_data: LoanData
+
+    # -----------------------
+    # Document Input
+    # -----------------------
+
+    pdf_path: str                  # uploaded loan document
+
+    # -----------------------
+    # Extracted Loan Data
+    # -----------------------
+
+    loan_data: Optional[LoanData]  # populated after PDF parsing
+
+    # -----------------------
+    # Agent Opinions
+    # -----------------------
 
     sales_opinion: Optional[str]
     risk_opinion: Optional[str]
     compliance_opinion: Optional[str]
 
+    # -----------------------
+    # Risk Flags
+    # -----------------------
+
     flags: List[str]
     veto: bool
+
+    # -----------------------
+    # Debate Tracking
+    # -----------------------
+
     turn_count: int
-
-    risk_score: Optional[int]
-    final_decision: Optional[Literal["approve", "reject", "review"]]
-    decision_summary: Optional[str]
-
     debate_round: int
     max_rounds: int
     consensus_reached: bool
+
+    # -----------------------
+    # Risk Evaluation
+    # -----------------------
+
+    risk_score: Optional[int]
+
+    # -----------------------
+    # Final Decision
+    # -----------------------
+
+    final_decision: Optional[Literal["approve", "reject", "review"]]
+    decision_summary: Optional[str]
