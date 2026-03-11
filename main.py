@@ -60,10 +60,6 @@ final_state = graph.invoke(state)
 
 print("\n--- Agent Debate ---\n")
 
-for message_chunk, metadata in graph.stream(state, stream_mode="messages"):
-    if message_chunk.content:
-        print(message_chunk.content, end="", flush=True)
-
 
 # ---------------------------
 # Export Decision Memo

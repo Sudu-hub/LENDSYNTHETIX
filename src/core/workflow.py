@@ -36,6 +36,7 @@ def document_node(state: WarRoomState):
     loan_data = extract_loan_data_from_pdf(pdf_path)
 
     state["loan_data"] = loan_data
+    print(state["loan_data"])
 
     return state
 
