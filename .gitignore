@@ -1,5 +1,43 @@
-myenv
+# Environment
 .env
-outputs
-.pdf
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+env/
+myenv/
+.venv/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Generated files
+outputs/
+generated/
+*.tmp
 uploads
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+decision_memo.pdf
+tests
