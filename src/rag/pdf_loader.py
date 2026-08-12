@@ -1,9 +1,4 @@
-from llama_index.readers.file import UnstructuredReader
-from llama_index.core import VectorStoreIndex
-from llama_index.core.node_parser import SentenceSplitter
-from llama_index.core.prompts import PromptTemplate
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-
+from pypdf import PdfReader
 from src.core.llm import get_llm
 from src.core.state import LoanData
 
@@ -14,53 +9,47 @@ import re
 def extract_loan_data_from_pdf(pdf_path: str) -> LoanData:
 
     # -------------------------
-    # Load PDF
+    # 1. Read PDF
     # -------------------------
-    loader = UnstructuredReader()
-    documents = loader.load_data(file=pdf_path)
+    reader = PdfReader(pdf_path)
+
+    pages = []
+
+    for page in reader.pages:
+        text = page.extract_text()
+
+        if text:
+            pages.append(text)
+
+    document_text = "\n\n".join(pages)
+
+    if not document_text.strip():
+        raise ValueError("Could not extract text from PDF.")
 
     # -------------------------
-    # Split text
+    # 2. Limit context size
     # -------------------------
-    splitter = SentenceSplitter(
-        chunk_size=1000,
-        chunk_overlap=200
-    )
-
-    nodes = splitter.get_nodes_from_documents(documents)
+    # Prevent sending an extremely large PDF to the LLM.
+    max_chars = 30000
+    document_text = document_text[:max_chars]
 
     # -------------------------
-    # Embeddings
-    # -------------------------
-    embed_model = HuggingFaceEmbedding(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
-
-    # -------------------------
-    # Vector Index
-    # -------------------------
-    index = VectorStoreIndex(
-        nodes,
-        embed_model=embed_model
-    )
-
-    retriever = index.as_retriever(similarity_top_k=4)
-
-    # -------------------------
-    # LLM
+    # 3. LLM
     # -------------------------
     llm = get_llm()
 
     # -------------------------
-    # Prompt
+    # 4. Prompt
     # -------------------------
-    prompt = PromptTemplate(
-        """
-Extract the following financial fields from the document.
+    prompt = f"""
+You are a financial document extraction system.
+
+Extract the following financial fields from the loan document.
 
 Return ONLY valid JSON.
 
 Fields:
+
 - industry (string)
 - revenue_growth (decimal like 0.40 for 40%)
 - dscr (number)
@@ -68,53 +57,71 @@ Fields:
 - collateral_value (number)
 - offshore_deposit (number)
 
-Context:
-{context_str}
+If a field cannot be found, use a reasonable default:
+- industry: "Unknown"
+- revenue_growth: 0.1
+- dscr: 1.0
+- debt_to_equity: 1.5
+- collateral_value: 0
+- offshore_deposit: 0
+
+Loan Document:
+
+{document_text}
 """
-    )
 
     # -------------------------
-    # Retrieve relevant text
+    # 5. LLM Extraction
     # -------------------------
-    nodes = retriever.retrieve("loan financial metrics")
-
-    context = "\n\n".join([node.text for node in nodes])
-
-    # -------------------------
-    # LLM Extraction
-    # -------------------------
-    response = llm.invoke(
-        prompt.format(context_str=context)
-    )
+    response = llm.invoke(prompt)
 
     text = response.content
 
     # -------------------------
-    # Extract JSON
+    # 6. Extract JSON
     # -------------------------
     json_match = re.search(r"\{.*\}", text, re.DOTALL)
 
-    if json_match:
+    if not json_match:
+        raise ValueError(
+            "LLM did not return valid JSON."
+        )
+
+    try:
         data = json.loads(json_match.group())
-    else:
-        raise ValueError("LLM did not return valid JSON")
+    except json.JSONDecodeError as e:
+        raise ValueError(
+            f"Could not parse LLM JSON response: {e}"
+        )
 
     # -------------------------
-    # Convert to LoanData
+    # 7. Convert to LoanData
     # -------------------------
     loan_data = LoanData(
 
-        industry=data.get("industry", "Unknown"),
+        industry=str(
+            data.get("industry", "Unknown")
+        ),
 
-        revenue_growth=float(data.get("revenue_growth", 0.1)),
+        revenue_growth=float(
+            data.get("revenue_growth", 0.1)
+        ),
 
-        dscr=float(data.get("dscr", 1.0)),
+        dscr=float(
+            data.get("dscr", 1.0)
+        ),
 
-        debt_to_equity=float(data.get("debt_to_equity", 1.5)),
+        debt_to_equity=float(
+            data.get("debt_to_equity", 1.5)
+        ),
 
-        collateral_value=float(data.get("collateral_value", 0)),
+        collateral_value=float(
+            data.get("collateral_value", 0)
+        ),
 
-        offshore_deposit=float(data.get("offshore_deposit", 0)),
+        offshore_deposit=float(
+            data.get("offshore_deposit", 0)
+        ),
 
         director_grey_list=False,
 
