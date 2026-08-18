@@ -3,7 +3,7 @@ name: Deploy LendSynthetix
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   deploy:
