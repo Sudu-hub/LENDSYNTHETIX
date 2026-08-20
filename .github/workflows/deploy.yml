@@ -1,4 +1,4 @@
-name: Deploy_LendSynthetix
+name: Deploy LendSynthetix
 
 on:
   push:
